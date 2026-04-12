@@ -3,7 +3,7 @@
 **[LÖVE](https://love2d.org) 游戏打包发布 GUI 工具。**  
 下载 LÖVE 运行时，配置项目，一键将游戏打包为 Windows、Linux、Android 独立可执行文件。
 
-> GUI 界面由 AI 辅助完成（vibe coding）。
+> GUI 界面由 AI 辅助完成
 
 [English](README.md)
 

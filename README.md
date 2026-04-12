@@ -3,7 +3,7 @@
 **A GUI tool for packaging and distributing [LÖVE](https://love2d.org) games.**  
 Download LÖVE runtimes, configure your project, and build standalone executables for Windows, Linux, and Android — all from one place.
 
-> The GUI was built with AI assistance (vibe coding).
+> The GUI was built with AI assistance
 
 [中文文档](README.zh-CN.md)
 

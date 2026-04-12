@@ -1198,12 +1198,19 @@ async fn embed_windows_icon(app: &AppHandle, exe_path: &Path, icon_src: &Path) -
     Ok(())
 }
 
-/// 在覆写图标前备份原始 love.png（备份文件名加 .orig 后缀）
+/// 备份目录：存放在模板根目录下的隐藏文件夹，不在 res/ 内，Gradle 不会扫描
+fn icon_backup_dir(template: &Path) -> PathBuf {
+    template.join(".love2dhub_icon_backup")
+}
+
+/// 在覆写图标前备份原始 love.png 到模板根目录的备份文件夹
 /// 如果备份已存在则跳过，确保备份始终是模板原始文件
-fn backup_android_default_icons(res_base: &Path, densities: &[(&str, u32)]) {
+fn backup_android_default_icons(template: &Path, res_base: &Path, densities: &[(&str, u32)]) {
+    let backup_dir = icon_backup_dir(template);
+    let _ = std::fs::create_dir_all(&backup_dir);
     for (dir, _) in densities {
-        let orig = res_base.join(dir).join("love.png");
-        let backup = res_base.join(dir).join("love.png.orig");
+        let orig   = res_base.join(dir).join("love.png");
+        let backup = backup_dir.join(format!("{}_love.png", dir));
         if orig.exists() && !backup.exists() {
             let _ = std::fs::copy(&orig, &backup);
         }
@@ -1219,9 +1226,10 @@ fn restore_android_default_icons(template: &Path) {
         ("drawable-xxhdpi",  144),
         ("drawable-xxxhdpi", 192),
     ];
-    let res_base = template.join("app").join("src").join("main").join("res");
+    let res_base  = template.join("app").join("src").join("main").join("res");
+    let backup_dir = icon_backup_dir(template);
     for (dir, _) in densities {
-        let backup = res_base.join(dir).join("love.png.orig");
+        let backup = backup_dir.join(format!("{}_love.png", dir));
         let orig   = res_base.join(dir).join("love.png");
         if backup.exists() {
             let _ = std::fs::copy(&backup, &orig);
@@ -1249,7 +1257,7 @@ fn set_android_launcher_icon(template: &Path, icon_src: &Path) -> Result<Vec<Str
 
     let res_base = template.join("app").join("src").join("main").join("res");
     // 写入前先备份原始图标（幂等，已有备份则跳过）
-    backup_android_default_icons(&res_base, densities);
+    backup_android_default_icons(template, &res_base, densities);
     logs.push(format!("  res 目录: {}", res_base.display()));
 
     for (dir, size) in densities {
