@@ -1,0 +1,119 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 font-sans;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* 日志、代码等文本区域允许选中复制 */
+  .select-text, .select-text * {
+    user-select: text !important;
+  }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { @apply bg-transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-gray-300 rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-gray-400; }
+
+  html.dark ::-webkit-scrollbar-thumb { background-color: #555555; }
+  html.dark ::-webkit-scrollbar-thumb:hover { background-color: #777777; }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-xl border border-gray-200 shadow-card
+           dark:bg-[#1e1e1e] dark:border-[#303030];
+  }
+  .btn-primary {
+    @apply flex items-center justify-center gap-2 px-4 py-2 bg-pink-500 hover:bg-pink-600
+           text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-40
+           disabled:cursor-not-allowed;
+  }
+  .btn-ghost {
+    @apply flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900
+           hover:bg-gray-100 rounded-lg transition-colors
+           dark:text-[#909090] dark:hover:text-[#e8e8e8] dark:hover:bg-[#2e2e2e];
+  }
+  .btn-danger {
+    @apply flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-500 hover:text-red-600
+           hover:bg-red-50 rounded-lg transition-colors
+           dark:hover:bg-red-900/30;
+  }
+  .input {
+    @apply w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm
+           outline-none focus:border-pink-400 focus:ring-2 focus:ring-pink-100
+           transition-all placeholder-gray-400
+           dark:bg-[#2a2a2a] dark:border-[#3a3a3a] dark:text-[#e8e8e8]
+           dark:placeholder-[#666] dark:focus:ring-pink-900/30;
+  }
+  .section-title {
+    @apply text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3
+           dark:text-slate-500;
+  }
+}
+
+/* ── 深色主题全局覆盖 ────────────────────────────────────────
+   用 html.dark 前缀覆盖常见 Tailwind gray/white 工具类，
+   避免在每个组件里逐一添加 dark: 变体。              */
+
+html.dark body {
+  background-color: #111111;
+  color: #e8e8e8;
+}
+
+/* 背景 */
+html.dark .bg-white          { background-color: #1e1e1e; }
+html.dark .bg-gray-50        { background-color: #111111; }
+html.dark .bg-gray-100       { background-color: #252525; }
+
+/* 文字 */
+html.dark .text-gray-900     { color: #e8e8e8; }
+html.dark .text-gray-800     { color: #d4d4d4; }
+html.dark .text-gray-700     { color: #b8b8b8; }
+html.dark .text-gray-600     { color: #909090; }
+html.dark .text-gray-500     { color: #888888; }
+html.dark .text-gray-400     { color: #606060; }
+
+/* 边框 */
+html.dark .border-gray-200   { border-color: #303030; }
+html.dark .border-gray-100   { border-color: #222222; }
+
+/* 分隔线 */
+html.dark .divide-gray-50 > :not([hidden]) ~ :not([hidden]) { border-color: #1e1e1e; }
+html.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: #2a2a2a; }
+
+/* Hover 背景 */
+html.dark .hover\:bg-gray-50:hover  { background-color: #252525; }
+html.dark .hover\:bg-gray-100:hover { background-color: #2e2e2e; }
+html.dark .hover\:text-gray-900:hover { color: #e8e8e8; }
+
+/* 状态色背景 (警告/信息/成功/错误) */
+html.dark .bg-amber-50       { background-color: rgba(120,53,15,0.25); }
+html.dark .bg-blue-50        { background-color: rgba(23,37,84,0.35);  }
+html.dark .bg-red-50         { background-color: rgba(127,29,29,0.25); }
+html.dark .bg-green-50       { background-color: rgba(20,83,45,0.25);  }
+html.dark .bg-pink-50        { background-color: rgba(131,24,67,0.15); }
+
+html.dark .border-amber-200  { border-color: #92400e; }
+html.dark .border-blue-200,
+html.dark .border-blue-100   { border-color: #1e3a8a; }
+html.dark .border-red-200    { border-color: #991b1b; }
+html.dark .border-green-200  { border-color: #166534; }
+html.dark .border-pink-200   { border-color: #9d174d; }
+
+html.dark .text-blue-600,
+html.dark .text-blue-700     { color: #93c5fd; }
+html.dark .text-blue-400     { color: #bfdbfe; }
+html.dark .text-amber-600,
+html.dark .text-amber-500    { color: #fbbf24; }
+html.dark .text-green-600,
+html.dark .text-green-700    { color: #86efac; }
+html.dark .text-blue-700     { color: #93c5fd; }
+
+/* code 元素 */
+html.dark code.bg-blue-100   { background-color: rgba(23,37,84,0.5); }
+html.dark code.bg-gray-100   { background-color: #334155; }
