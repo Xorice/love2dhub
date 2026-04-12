@@ -484,7 +484,8 @@ fn copy_non_lua_files(src: &Path, dst: &Path) -> Result<()> {
             std::fs::create_dir_all(&dest)?;
             copy_non_lua_files(&path, &dest)?;
         } else if path.extension().and_then(|e| e.to_str()) != Some("lua") {
-            std::fs::copy(&path, &dest)?;
+            std::fs::copy(&path, &dest)
+                .map_err(|e| anyhow::anyhow!("无法读取文件 \"{}\": {e}\n提示：请将游戏源码移至普通用户目录（如桌面、文档），避免放在 Program Files 等受保护位置", path.display()))?;
         }
     }
     Ok(())
@@ -510,22 +511,24 @@ async fn build_windows(
 
     let exe_path = out_dir.join(format!("{}.exe", config.name));
 
-    // ── 嵌入图标（必须在拼接 .love 之前，rcedit 会重写 PE 结构）──
-    let icon_src = Path::new(&config.icon_path);
-    if !config.icon_path.is_empty() && icon_src.exists() {
-        emit_log(app, "  正在嵌入 exe 图标…");
-        // 先把 love.exe 复制到目标路径，rcedit 只修改 PE 资源
-        std::fs::copy(&love_exe, &exe_path)?;
-        match embed_windows_icon(app, &exe_path, icon_src).await {
-            Ok(_)  => emit_log(app, "  ✓ 图标已嵌入"),
+    // ── 写入图标 + PE 元数据（必须在拼接 .love 之前，rcedit 会重写 PE 结构）──
+    std::fs::copy(&love_exe, &exe_path)?;
+    {
+        let icon_src = Path::new(&config.icon_path);
+        let icon_opt = if !config.icon_path.is_empty() && icon_src.exists() {
+            Some(icon_src)
+        } else {
+            None
+        };
+        emit_log(app, "  正在写入 exe 元数据…");
+        match set_windows_resources(app, &exe_path, icon_opt, config).await {
+            Ok(_)  => emit_log(app, "  ✓ 元数据已写入"),
             Err(e) => {
-                emit_log(app, &format!("  [WARN] 图标嵌入失败（不影响运行）: {e}"));
-                // 嵌入失败时回退：直接用原始 love.exe
+                emit_log(app, &format!("  [WARN] 元数据写入失败（不影响运行）: {e}"));
+                // 回退：重新 copy 干净的 love.exe
                 std::fs::copy(&love_exe, &exe_path)?;
             }
         }
-    } else {
-        std::fs::copy(&love_exe, &exe_path)?;
     }
 
     // ── 追加 .love（必须在图标嵌入之后）──────────────────────
@@ -628,10 +631,15 @@ async fn build_android(
     {
         let name_bytes = config.name.as_bytes()
             .iter().map(|b| b.to_string()).collect::<Vec<_>>().join(",");
+        let orientation = if config.android_orientation.is_empty() {
+            "landscape"
+        } else {
+            config.android_orientation.as_str()
+        };
         let gradle_props = format!(
             "app.name_byte_array={name_bytes}\n\
              app.application_id={app_id}\n\
-             app.orientation=landscape\n\
+             app.orientation={orientation}\n\
              app.version_code={version_code}\n\
              app.version_name={version_name}\n\
              \n\
@@ -643,11 +651,12 @@ async fn build_android(
              android.nonFinalResIds=true\n",
             name_bytes = name_bytes,
             app_id = app_id,
+            orientation = orientation,
             version_code = version_code,
             version_name = config.version,
         );
         std::fs::write(template.join("gradle.properties"), gradle_props)?;
-        emit_log(app, &format!("[OK] gradle.properties 已更新（应用名: {}）", config.name));
+        emit_log(app, &format!("[OK] gradle.properties 已更新（应用名: {}，方向: {}）", config.name, orientation));
     }
 
     // ── 5.5 覆写启动图标 ───────────────────────────────────────
@@ -1169,29 +1178,55 @@ async fn ensure_rcedit() -> Result<PathBuf> {
     Ok(path)
 }
 
-/// 用 rcedit 把 ICO 嵌入 Windows exe（自动下载 rcedit，仅限 Windows 构建）
-async fn embed_windows_icon(app: &AppHandle, exe_path: &Path, icon_src: &Path) -> Result<()> {
+/// 用 rcedit 写入 Windows exe 的图标和 PE 版本信息（自动下载 rcedit）
+async fn set_windows_resources(
+    app: &AppHandle,
+    exe_path: &Path,
+    icon_src: Option<&Path>,
+    config: &ProjectConfig,
+) -> Result<()> {
     let rcedit = ensure_rcedit().await
         .map_err(|e| anyhow::anyhow!("下载 rcedit 失败: {e}"))?;
     emit_log(app, "  rcedit 已就绪");
 
-    // 如果图标不是 .ico，先包装成 ICO 格式
+    let mut cmd = std::process::Command::new(&rcedit);
+    cmd.arg(exe_path);
+
+    // ── 图标 ──────────────────────────────────────────────
     let tmp_ico;
-    let ico_path: &Path = if icon_src.extension().and_then(|e| e.to_str()) == Some("ico") {
-        icon_src
+    if let Some(icon) = icon_src {
+        let ico_path: &Path = if icon.extension().and_then(|e| e.to_str()) == Some("ico") {
+            icon
+        } else {
+            let ico_data = png_to_ico_bytes(icon)?;
+            tmp_ico = std::env::temp_dir().join("love2dhub_icon.ico");
+            std::fs::write(&tmp_ico, ico_data)?;
+            &tmp_ico
+        };
+        cmd.arg("--set-icon").arg(ico_path);
+    }
+
+    // ── PE 版本信息 ────────────────────────────────────────
+    let product_name = if !config.win_product_name.is_empty() {
+        &config.win_product_name
     } else {
-        let ico_data = png_to_ico_bytes(icon_src)?;
-        tmp_ico = std::env::temp_dir().join("love2dhub_icon.ico");
-        std::fs::write(&tmp_ico, ico_data)?;
-        &tmp_ico
+        &config.name
     };
+    cmd.arg("--set-product-name").arg(product_name);
+    cmd.arg("--set-product-version").arg(&config.version);
+    cmd.arg("--set-file-version").arg(&config.version);
 
-    let status = std::process::Command::new(&rcedit)
-        .arg(exe_path)
-        .arg("--set-icon")
-        .arg(ico_path)
-        .status()?;
+    if !config.win_file_description.is_empty() {
+        cmd.arg("--set-file-description").arg(&config.win_file_description);
+    }
+    if !config.win_company_name.is_empty() {
+        cmd.arg("--set-version-string").arg("CompanyName").arg(&config.win_company_name);
+    }
+    if !config.win_copyright.is_empty() {
+        cmd.arg("--set-legal-copyright").arg(&config.win_copyright);
+    }
 
+    let status = cmd.status()?;
     if !status.success() {
         anyhow::bail!("rcedit 返回非零退出码");
     }
@@ -1289,7 +1324,19 @@ fn find_file_in_dir(dir: &Path, name: &str) -> Option<PathBuf> {
 
 /// 应跳过的目录名（不打包进 .love）
 fn should_skip_dir(name: &str) -> bool {
-    matches!(name, ".git" | ".svn" | ".hg" | "node_modules" | ".DS_Store" | "__pycache__")
+    // VCS / 依赖 / 系统垃圾
+    if matches!(name, ".git" | ".svn" | ".hg" | "node_modules" | ".DS_Store" | "__pycache__") {
+        return true;
+    }
+    // 常见构建输出目录
+    if matches!(name, "dist" | "build" | "out") {
+        return true;
+    }
+    // macOS 应用包 (.app) 和 Framework 包 (.framework) —— 永远不是游戏源码
+    if name.ends_with(".app") || name.ends_with(".framework") {
+        return true;
+    }
+    false
 }
 
 fn zip_dir(
@@ -1298,7 +1345,9 @@ fn zip_dir(
     dir: &Path,
     opts: &zip::write::SimpleFileOptions,
 ) -> Result<()> {
-    for entry in std::fs::read_dir(dir)? {
+    let entries = std::fs::read_dir(dir)
+        .map_err(|e| anyhow::anyhow!("无法读取目录 \"{}\": {e}", dir.display()))?;
+    for entry in entries {
         let entry = entry?;
         let path = entry.path();
         let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
@@ -1308,8 +1357,10 @@ fn zip_dir(
         if path.is_dir() {
             zip_dir(zip, base, &path, opts)?;
         } else {
+            let data = std::fs::read(&path)
+                .map_err(|e| anyhow::anyhow!("无法读取文件 \"{}\": {e}\n提示：请将游戏源码移至普通用户目录（如桌面、文档），避免放在 Program Files 等受保护位置", path.display()))?;
             zip.start_file(&rel, *opts)?;
-            zip.write_all(&std::fs::read(&path)?)?;
+            zip.write_all(&data)?;
         }
     }
     Ok(())

@@ -8,6 +8,7 @@ import BuildPanel from "./components/BuildPanel";
 import PackagesPanel from "./components/PackagesPanel";
 import SettingsPanel from "./components/SettingsPanel";
 import AboutPanel from "./components/AboutPanel";
+import MetadataPanel from "./components/MetadataPanel";
 import TaskQueue from "./components/TaskQueue";
 import { useAppStore } from "./store/useAppStore";
 import { onDownloadProgress, listCachedRuntimes } from "./lib/tauri";
@@ -97,6 +98,7 @@ export default function App() {
       <Sidebar />
       <main className="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-[#111111]">
         {activeTab === "project"  && <ProjectConfig />}
+        {activeTab === "metadata" && <MetadataPanel />}
         {activeTab === "versions" && <VersionManager />}
         {activeTab === "build"    && <BuildPanel />}
         {activeTab === "packages" && <PackagesPanel />}

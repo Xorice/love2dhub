@@ -32,8 +32,20 @@ export interface ProjectConfig {
   targets: BuildTarget[];
   /** 是否在打包前用 LuaJIT 编译 .lua 文件为字节码 */
   compileLua: boolean;
+  // ── Windows 可执行文件元数据（rcedit 写入 PE 版本信息）──
+  /** 产品名，空则使用游戏名 */
+  winProductName: string;
+  /** 文件描述（资源管理器详情列）*/
+  winFileDescription: string;
+  /** 公司/作者名 */
+  winCompanyName: string;
+  /** 版权信息，如 © 2025 Your Name */
+  winCopyright: string;
+  // ── Android 元数据 ────────────────────────────────────
   /** Android 应用包名，如 com.example.mygame（空则自动生成） */
   androidAppId: string;
+  /** 屏幕方向 */
+  androidOrientation: "landscape" | "portrait" | "sensorLandscape" | "sensorPortrait";
 }
 
 export interface BuildTarget {

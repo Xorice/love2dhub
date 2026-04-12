@@ -39,7 +39,7 @@ function saveSettings(s: AppSettings) {
 
 // ── store types ────────────────────────────────────────────
 
-export type ActiveTab = "project" | "versions" | "build" | "packages" | "settings" | "about";
+export type ActiveTab = "project" | "metadata" | "versions" | "build" | "packages" | "settings" | "about";
 
 interface AppState {
   // --- Love2D 版本 ---
@@ -97,7 +97,12 @@ const defaultProject: ProjectConfig = {
   author: "",
   description: "",
   compileLua: false,
+  winProductName: "",
+  winFileDescription: "",
+  winCompanyName: "",
+  winCopyright: "",
   androidAppId: "",
+  androidOrientation: "landscape",
   sourcePath: "",
   iconPath: "",
   love2dVersion: "",

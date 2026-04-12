@@ -52,14 +52,6 @@ export default function ProjectConfig() {
                 placeholder="1.0.0"
               />
             </Field>
-            <Field label={t("project.author")}>
-              <input
-                className="input"
-                value={project.author}
-                onChange={(e) => updateProject({ author: e.target.value })}
-                placeholder="Your Name"
-              />
-            </Field>
             <Field label={t("project.description")}>
               <input
                 className="input"
@@ -111,24 +103,6 @@ export default function ProjectConfig() {
             </Field>
           </div>
         </div>
-
-        {/* Android App ID */}
-        {project.targets.find((t2) => t2.platform === "android")?.enabled && (
-          <div className="card p-5">
-            <p className="section-title">{t("project.section_android")}</p>
-            <Field label={t("project.android_app_id")} hint={t("project.android_app_id_hint")}>
-              <input
-                type="text"
-                className="input"
-                value={project.androidAppId}
-                onChange={(e) => updateProject({ androidAppId: e.target.value })}
-                placeholder={t("project.android_app_id_placeholder")}
-                spellCheck={false}
-                autoComplete="off"
-              />
-            </Field>
-          </div>
-        )}
 
         {/* 目标平台 */}
         <div className="card p-5">

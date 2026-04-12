@@ -49,9 +49,22 @@ pub struct ProjectConfig {
     /// 是否在打包前用 LuaJIT 编译 .lua 为字节码
     #[serde(rename = "compileLua", default)]
     pub compile_lua: bool,
+    // ── Windows 可执行文件元数据 ──────────────────────────
+    #[serde(rename = "winProductName", default)]
+    pub win_product_name: String,
+    #[serde(rename = "winFileDescription", default)]
+    pub win_file_description: String,
+    #[serde(rename = "winCompanyName", default)]
+    pub win_company_name: String,
+    #[serde(rename = "winCopyright", default)]
+    pub win_copyright: String,
+    // ── Android 元数据 ────────────────────────────────────
     /// Android 应用包名，如 com.example.mygame（空则自动生成）
     #[serde(rename = "androidAppId", default)]
     pub android_app_id: String,
+    /// 屏幕方向：landscape / portrait / sensorLandscape / sensorPortrait
+    #[serde(rename = "androidOrientation", default)]
+    pub android_orientation: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

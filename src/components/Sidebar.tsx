@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Heart, Package, Download, Wrench, Box, Settings, Info } from "lucide-react";
+import { Heart, Package, Download, Wrench, Box, Settings, Info, Tag } from "lucide-react";
 import { getVersion } from "@tauri-apps/api/app";
 import { useAppStore } from "../store/useAppStore";
 import type { ActiveTab } from "../store/useAppStore";
@@ -13,6 +13,7 @@ export default function Sidebar() {
 
   const tabs = [
     { id: "project"  as ActiveTab, label: t("nav.project"),  icon: Package  },
+    { id: "metadata" as ActiveTab, label: t("nav.metadata"), icon: Tag      },
     { id: "versions" as ActiveTab, label: t("nav.versions"), icon: Download  },
     { id: "build"    as ActiveTab, label: t("nav.build"),    icon: Wrench    },
     { id: "packages" as ActiveTab, label: t("nav.packages"), icon: Box       },
