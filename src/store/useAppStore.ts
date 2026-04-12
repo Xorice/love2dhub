@@ -99,7 +99,6 @@ const defaultProject: ProjectConfig = {
   compileLua: false,
   winProductName: "",
   winFileDescription: "",
-  winCompanyName: "",
   winCopyright: "",
   androidAppId: "",
   sourcePath: "",

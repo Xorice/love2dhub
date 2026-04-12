@@ -54,8 +54,6 @@ pub struct ProjectConfig {
     pub win_product_name: String,
     #[serde(rename = "winFileDescription", default)]
     pub win_file_description: String,
-    #[serde(rename = "winCompanyName", default)]
-    pub win_company_name: String,
     #[serde(rename = "winCopyright", default)]
     pub win_copyright: String,
     // ── Android 元数据 ────────────────────────────────────

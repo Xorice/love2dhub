@@ -55,13 +55,6 @@ export default function MetadataPanel() {
                 placeholder={t("metadata.win_file_description_placeholder")}
               />
             </Field>
-            <Field label={t("metadata.win_company_name")}>
-              <input className="input" disabled={!winEnabled}
-                value={project.winCompanyName}
-                onChange={(e) => updateProject({ winCompanyName: e.target.value })}
-                placeholder={t("metadata.win_company_name_placeholder")}
-              />
-            </Field>
             <Field label={t("metadata.win_copyright")}>
               <input className="input" disabled={!winEnabled}
                 value={project.winCopyright}

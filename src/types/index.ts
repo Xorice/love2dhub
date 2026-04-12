@@ -37,8 +37,6 @@ export interface ProjectConfig {
   winProductName: string;
   /** 文件描述（资源管理器详情列）*/
   winFileDescription: string;
-  /** 公司/作者名 */
-  winCompanyName: string;
   /** 版权信息，如 © 2025 Your Name */
   winCopyright: string;
   // ── Android 元数据 ────────────────────────────────────

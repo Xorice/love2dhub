@@ -66,8 +66,6 @@ const zhCN = {
     win_product_name_placeholder: "如 My Awesome Game",
     win_file_description: "文件描述",
     win_file_description_placeholder: "如 A LÖVE2D game",
-    win_company_name: "公司 / 开发者",
-    win_company_name_placeholder: "如 Your Studio",
     win_copyright: "版权信息",
     win_copyright_placeholder: "如 © 2025 Your Name",
     section_android: "Android 应用信息",

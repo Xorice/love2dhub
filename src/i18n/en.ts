@@ -66,8 +66,6 @@ const en = {
     win_product_name_placeholder: "e.g. My Awesome Game",
     win_file_description: "File Description",
     win_file_description_placeholder: "e.g. A LÖVE2D game",
-    win_company_name: "Company / Developer",
-    win_company_name_placeholder: "e.g. Your Studio",
     win_copyright: "Copyright",
     win_copyright_placeholder: "e.g. © 2025 Your Name",
     section_android: "Android App Info",

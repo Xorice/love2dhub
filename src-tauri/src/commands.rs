@@ -1212,8 +1212,8 @@ async fn set_windows_resources(
     if !config.win_file_description.is_empty() {
         cmd.arg("--set-file-description").arg(&config.win_file_description);
     }
-    if !config.win_company_name.is_empty() {
-        cmd.arg("--set-version-string").arg("CompanyName").arg(&config.win_company_name);
+    if !config.author.is_empty() {
+        cmd.arg("--set-version-string").arg("CompanyName").arg(&config.author);
     }
     if !config.win_copyright.is_empty() {
         cmd.arg("--set-legal-copyright").arg(&config.win_copyright);
