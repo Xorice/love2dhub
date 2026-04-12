@@ -461,6 +461,8 @@ fn collect_lua_recursive(base: &Path, dir: &Path, out: &mut Vec<String>) -> Resu
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if path.is_dir() && should_skip_dir(name) { continue; }
         if path.is_dir() {
             collect_lua_recursive(base, &path, out)?;
         } else if path.extension().and_then(|e| e.to_str()) == Some("lua") {
@@ -475,6 +477,8 @@ fn copy_non_lua_files(src: &Path, dst: &Path) -> Result<()> {
     for entry in std::fs::read_dir(src)? {
         let entry = entry?;
         let path = entry.path();
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if path.is_dir() && should_skip_dir(name) { continue; }
         let dest = dst.join(entry.file_name());
         if path.is_dir() {
             std::fs::create_dir_all(&dest)?;
@@ -647,19 +651,31 @@ async fn build_android(
     }
 
     // ── 5.5 覆写启动图标 ───────────────────────────────────────
-    if !config.icon_path.is_empty() {
-        let icon_src = Path::new(&config.icon_path);
-        if icon_src.exists() {
-            emit_log(app, "[INFO] 正在写入 Android 启动图标…");
-            match set_android_launcher_icon(&template, icon_src) {
-                Ok(logs) => {
-                    for line in &logs { emit_log(app, line); }
-                    emit_log(app, "[OK] Android 启动图标已全部写入");
-                }
-                Err(e) => emit_log(app, &format!("[WARN] Android 图标写入失败（不影响构建）: {e}")),
+    // 无论是否有自定义图标，都先确保备份存在，然后决定写入还是恢复
+    {
+        let icon_src = if !config.icon_path.is_empty() {
+            let p = Path::new(&config.icon_path);
+            if p.exists() { Some(p) } else {
+                emit_log(app, &format!("[WARN] 图标文件不存在，将使用默认图标: {}", config.icon_path));
+                None
             }
-        } else {
-            emit_log(app, &format!("[WARN] 图标文件不存在，跳过: {}", config.icon_path));
+        } else { None };
+
+        match icon_src {
+            Some(src) => {
+                emit_log(app, "[INFO] 正在写入 Android 启动图标…");
+                match set_android_launcher_icon(&template, src) {
+                    Ok(logs) => {
+                        for line in &logs { emit_log(app, line); }
+                        emit_log(app, "[OK] Android 启动图标已全部写入");
+                    }
+                    Err(e) => emit_log(app, &format!("[WARN] Android 图标写入失败（不影响构建）: {e}")),
+                }
+            }
+            None => {
+                // 没有自定义图标，恢复模板原始图标（防止上次构建的图标残留）
+                restore_android_default_icons(&template);
+            }
         }
     }
 
@@ -1182,6 +1198,37 @@ async fn embed_windows_icon(app: &AppHandle, exe_path: &Path, icon_src: &Path) -
     Ok(())
 }
 
+/// 在覆写图标前备份原始 love.png（备份文件名加 .orig 后缀）
+/// 如果备份已存在则跳过，确保备份始终是模板原始文件
+fn backup_android_default_icons(res_base: &Path, densities: &[(&str, u32)]) {
+    for (dir, _) in densities {
+        let orig = res_base.join(dir).join("love.png");
+        let backup = res_base.join(dir).join("love.png.orig");
+        if orig.exists() && !backup.exists() {
+            let _ = std::fs::copy(&orig, &backup);
+        }
+    }
+}
+
+/// 将 drawable-*/love.png 恢复为备份的原始文件
+fn restore_android_default_icons(template: &Path) {
+    let densities: &[(&str, u32)] = &[
+        ("drawable-mdpi",    48),
+        ("drawable-hdpi",    72),
+        ("drawable-xhdpi",   96),
+        ("drawable-xxhdpi",  144),
+        ("drawable-xxxhdpi", 192),
+    ];
+    let res_base = template.join("app").join("src").join("main").join("res");
+    for (dir, _) in densities {
+        let backup = res_base.join(dir).join("love.png.orig");
+        let orig   = res_base.join(dir).join("love.png");
+        if backup.exists() {
+            let _ = std::fs::copy(&backup, &orig);
+        }
+    }
+}
+
 /// 把用户图标缩放到所有 drawable 密度，覆盖模板中的 love.png
 /// （AndroidManifest.xml 使用 @drawable/love 作为启动图标）
 /// 返回每个文件的写入日志，供调用方 emit
@@ -1201,6 +1248,8 @@ fn set_android_launcher_icon(template: &Path, icon_src: &Path) -> Result<Vec<Str
     ];
 
     let res_base = template.join("app").join("src").join("main").join("res");
+    // 写入前先备份原始图标（幂等，已有备份则跳过）
+    backup_android_default_icons(&res_base, densities);
     logs.push(format!("  res 目录: {}", res_base.display()));
 
     for (dir, size) in densities {
@@ -1230,6 +1279,11 @@ fn find_file_in_dir(dir: &Path, name: &str) -> Option<PathBuf> {
 }
 
 
+/// 应跳过的目录名（不打包进 .love）
+fn should_skip_dir(name: &str) -> bool {
+    matches!(name, ".git" | ".svn" | ".hg" | "node_modules" | ".DS_Store" | "__pycache__")
+}
+
 fn zip_dir(
     zip: &mut zip::ZipWriter<std::fs::File>,
     base: &Path,
@@ -1239,6 +1293,9 @@ fn zip_dir(
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        // 跳过版本控制目录、依赖目录等
+        if path.is_dir() && should_skip_dir(name) { continue; }
         let rel = path.strip_prefix(base)?.to_string_lossy().replace('\\', "/");
         if path.is_dir() {
             zip_dir(zip, base, &path, opts)?;
