@@ -1,6 +1,6 @@
 [package]
 name = "love2d-hub"
-version = "0.1.0"
+version = "0.1.1"
 description = "Love2D cross-platform distribution tool"
 authors = []
 edition = "2021"
@@ -31,3 +31,4 @@ futures-util = "0.3"
 zip = "2"
 anyhow = "1"
 dirs = "5"
+image = { version = "0.25", default-features = false, features = ["png"] }

@@ -24,6 +24,7 @@ pub fn run() {
             commands::get_host_platform,
             commands::get_default_dirs,
             commands::open_path,
+            commands::read_file_as_data_url,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

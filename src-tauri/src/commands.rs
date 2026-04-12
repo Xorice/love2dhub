@@ -286,8 +286,9 @@ pub async fn build_game(
     for target in &config.targets {
         if !target.enabled { continue; }
         emit_log(&app, &format!("[INFO] 构建 {}…", target.platform));
+        emit_progress(&app, &target.platform, "running", "构建中…");
         let result = match target.platform.as_str() {
-            "windows" => build_windows(&app, &config, &love_path, runtime_dir.as_deref(), default_output_dir.as_deref()),
+            "windows" => build_windows(&app, &config, &love_path, runtime_dir.as_deref(), default_output_dir.as_deref()).await,
             "linux"   => build_linux(&app, &config, &love_path, default_output_dir.as_deref()),
             "android" => build_android(
                 &app, &config, &love_path, default_output_dir.as_deref(),
@@ -298,8 +299,14 @@ pub async fn build_game(
             p => Err(anyhow::anyhow!("平台 {p} 暂未支持")),
         };
         match result {
-            Ok(_)  => emit_log(&app, &format!("[OK] {} 构建成功", target.platform)),
-            Err(e) => emit_log(&app, &format!("[ERROR] {} 构建失败: {e}", target.platform)),
+            Ok(_)  => {
+                emit_log(&app, &format!("[OK] {} 构建成功", target.platform));
+                emit_progress(&app, &target.platform, "success", "构建成功");
+            }
+            Err(e) => {
+                emit_log(&app, &format!("[ERROR] {} 构建失败: {e}", target.platform));
+                emit_progress(&app, &target.platform, "error", &e.to_string());
+            }
         }
     }
 
@@ -481,7 +488,7 @@ fn copy_non_lua_files(src: &Path, dst: &Path) -> Result<()> {
 
 // ── 各平台打包 ─────────────────────────────────────────────
 
-fn build_windows(
+async fn build_windows(
     app: &AppHandle,
     config: &ProjectConfig,
     love_path: &Path,
@@ -498,9 +505,29 @@ fn build_windows(
     std::fs::create_dir_all(&out_dir)?;
 
     let exe_path = out_dir.join(format!("{}.exe", config.name));
-    let mut data = std::fs::read(&love_exe)?;
-    data.extend_from_slice(&std::fs::read(love_path)?);
-    std::fs::write(&exe_path, &data)?;
+
+    // ── 嵌入图标（必须在拼接 .love 之前，rcedit 会重写 PE 结构）──
+    let icon_src = Path::new(&config.icon_path);
+    if !config.icon_path.is_empty() && icon_src.exists() {
+        emit_log(app, "  正在嵌入 exe 图标…");
+        // 先把 love.exe 复制到目标路径，rcedit 只修改 PE 资源
+        std::fs::copy(&love_exe, &exe_path)?;
+        match embed_windows_icon(app, &exe_path, icon_src).await {
+            Ok(_)  => emit_log(app, "  ✓ 图标已嵌入"),
+            Err(e) => {
+                emit_log(app, &format!("  [WARN] 图标嵌入失败（不影响运行）: {e}"));
+                // 嵌入失败时回退：直接用原始 love.exe
+                std::fs::copy(&love_exe, &exe_path)?;
+            }
+        }
+    } else {
+        std::fs::copy(&love_exe, &exe_path)?;
+    }
+
+    // ── 追加 .love（必须在图标嵌入之后）──────────────────────
+    let mut f = std::fs::OpenOptions::new().append(true).open(&exe_path)?;
+    std::io::Write::write_all(&mut f, &std::fs::read(love_path)?)?;
+    drop(f);
 
     let mut dll_count = 0;
     for entry in std::fs::read_dir(runtime_parent)? {
@@ -617,6 +644,23 @@ async fn build_android(
         );
         std::fs::write(template.join("gradle.properties"), gradle_props)?;
         emit_log(app, &format!("[OK] gradle.properties 已更新（应用名: {}）", config.name));
+    }
+
+    // ── 5.5 覆写启动图标 ───────────────────────────────────────
+    if !config.icon_path.is_empty() {
+        let icon_src = Path::new(&config.icon_path);
+        if icon_src.exists() {
+            emit_log(app, "[INFO] 正在写入 Android 启动图标…");
+            match set_android_launcher_icon(&template, icon_src) {
+                Ok(logs) => {
+                    for line in &logs { emit_log(app, line); }
+                    emit_log(app, "[OK] Android 启动图标已全部写入");
+                }
+                Err(e) => emit_log(app, &format!("[WARN] Android 图标写入失败（不影响构建）: {e}")),
+            }
+        } else {
+            emit_log(app, &format!("[WARN] 图标文件不存在，跳过: {}", config.icon_path));
+        }
     }
 
     // ── 6. 启动 Gradle ─────────────────────────────────────
@@ -981,6 +1025,33 @@ pub fn get_default_dirs() -> (String, String) {
 }
 
 
+/// 读取任意本地文件，返回 base64 编码的 data URL（用于前端图片预览）
+#[tauri::command]
+pub fn read_file_as_data_url(path: String) -> Result<String, String> {
+    use std::io::Read;
+    let p = std::path::Path::new(&path);
+    if !p.exists() {
+        return Err(format!("文件不存在: {path}"));
+    }
+    let ext = p.extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("png")
+        .to_lowercase();
+    let mime = match ext.as_str() {
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif"          => "image/gif",
+        "webp"         => "image/webp",
+        "ico"          => "image/x-icon",
+        _              => "image/png",
+    };
+    let mut buf = Vec::new();
+    std::fs::File::open(p)
+        .and_then(|mut f| { f.read_to_end(&mut buf).map(|_| ()) })
+        .map_err(|e| e.to_string())?;
+    let b64 = encode_base64(&buf);
+    Ok(format!("data:{mime};base64,{b64}"))
+}
+
 /// 返回当前宿主平台字符串，用于前端判断是否可以运行特定格式
 #[tauri::command]
 pub fn get_host_platform() -> String {
@@ -995,6 +1066,14 @@ pub fn get_host_platform() -> String {
 
 fn emit_log(app: &AppHandle, msg: &str) {
     let _ = app.emit("build-log", msg);
+}
+
+fn emit_progress(app: &AppHandle, platform: &str, status: &str, message: &str) {
+    let _ = app.emit("build-progress", serde_json::json!({
+        "platform": platform,
+        "status": status,
+        "message": message,
+    }));
 }
 
 /// 返回构建根目录（不含游戏名和平台）
@@ -1017,6 +1096,123 @@ fn effective_output_dir(game_name: &str, platform: &str, custom_default: Option<
 
 fn resolve_output_dir(game_name: &str, platform: &str, default_output_dir: Option<&str>) -> PathBuf {
     effective_output_dir(game_name, platform, default_output_dir)
+}
+
+/// 标准 base64 编码（不依赖外部 crate）
+fn encode_base64(data: &[u8]) -> String {
+    const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity((data.len() + 2) / 3 * 4);
+    for chunk in data.chunks(3) {
+        let b0 = chunk[0] as usize;
+        let b1 = if chunk.len() > 1 { chunk[1] as usize } else { 0 };
+        let b2 = if chunk.len() > 2 { chunk[2] as usize } else { 0 };
+        out.push(CHARS[b0 >> 2] as char);
+        out.push(CHARS[((b0 & 3) << 4) | (b1 >> 4)] as char);
+        out.push(if chunk.len() > 1 { CHARS[((b1 & 0xf) << 2) | (b2 >> 6)] as char } else { '=' });
+        out.push(if chunk.len() > 2 { CHARS[b2 & 0x3f] as char } else { '=' });
+    }
+    out
+}
+
+// ── 图标处理 ──────────────────────────────────────────────────
+
+/// 把任意 PNG 包装成 Vista+ 兼容的单图 ICO（无需外部库解码）
+fn png_to_ico_bytes(png_path: &Path) -> Result<Vec<u8>> {
+    let png = std::fs::read(png_path)?;
+    let mut ico = Vec::with_capacity(22 + png.len());
+    // ICONDIR
+    ico.extend_from_slice(&[0u8, 0]);       // reserved
+    ico.extend_from_slice(&[1u8, 0]);       // type: 1 = ICO
+    ico.extend_from_slice(&[1u8, 0]);       // count: 1 image
+    // ICONDIRENTRY
+    ico.push(0); ico.push(0);               // width=0 → 256, height=0 → 256
+    ico.push(0); ico.push(0);               // color count, reserved
+    ico.extend_from_slice(&1u16.to_le_bytes());  // planes
+    ico.extend_from_slice(&32u16.to_le_bytes()); // bit depth
+    ico.extend_from_slice(&(png.len() as u32).to_le_bytes()); // image size
+    ico.extend_from_slice(&22u32.to_le_bytes()); // data offset (6+16)
+    ico.extend_from_slice(&png);
+    Ok(ico)
+}
+
+/// 下载 rcedit-x64.exe（首次使用时一次性操作，缓存在 love2dhub/tools/）
+async fn ensure_rcedit() -> Result<PathBuf> {
+    let path = dirs::data_dir()
+        .ok_or_else(|| anyhow::anyhow!("无法获取用户数据目录"))?
+        .join("love2dhub").join("tools").join("rcedit-x64.exe");
+
+    if path.exists() {
+        return Ok(path);
+    }
+    std::fs::create_dir_all(path.parent().unwrap())?;
+
+    let bytes = reqwest::get(
+        "https://github.com/electron/rcedit/releases/latest/download/rcedit-x64.exe"
+    ).await?.bytes().await?;
+    std::fs::write(&path, &bytes)?;
+    Ok(path)
+}
+
+/// 用 rcedit 把 ICO 嵌入 Windows exe（自动下载 rcedit，仅限 Windows 构建）
+async fn embed_windows_icon(app: &AppHandle, exe_path: &Path, icon_src: &Path) -> Result<()> {
+    let rcedit = ensure_rcedit().await
+        .map_err(|e| anyhow::anyhow!("下载 rcedit 失败: {e}"))?;
+    emit_log(app, "  rcedit 已就绪");
+
+    // 如果图标不是 .ico，先包装成 ICO 格式
+    let tmp_ico;
+    let ico_path: &Path = if icon_src.extension().and_then(|e| e.to_str()) == Some("ico") {
+        icon_src
+    } else {
+        let ico_data = png_to_ico_bytes(icon_src)?;
+        tmp_ico = std::env::temp_dir().join("love2dhub_icon.ico");
+        std::fs::write(&tmp_ico, ico_data)?;
+        &tmp_ico
+    };
+
+    let status = std::process::Command::new(&rcedit)
+        .arg(exe_path)
+        .arg("--set-icon")
+        .arg(ico_path)
+        .status()?;
+
+    if !status.success() {
+        anyhow::bail!("rcedit 返回非零退出码");
+    }
+    Ok(())
+}
+
+/// 把用户图标缩放到所有 drawable 密度，覆盖模板中的 love.png
+/// （AndroidManifest.xml 使用 @drawable/love 作为启动图标）
+/// 返回每个文件的写入日志，供调用方 emit
+fn set_android_launcher_icon(template: &Path, icon_src: &Path) -> Result<Vec<String>> {
+    let mut logs = Vec::new();
+    logs.push(format!("  图标源文件: {}", icon_src.display()));
+
+    let img = image::open(icon_src)
+        .map_err(|e| anyhow::anyhow!("无法打开图标文件（请确认是有效的 PNG/JPEG）: {e}"))?;
+
+    let densities: &[(&str, u32)] = &[
+        ("drawable-mdpi",    48),
+        ("drawable-hdpi",    72),
+        ("drawable-xhdpi",   96),
+        ("drawable-xxhdpi",  144),
+        ("drawable-xxxhdpi", 192),
+    ];
+
+    let res_base = template.join("app").join("src").join("main").join("res");
+    logs.push(format!("  res 目录: {}", res_base.display()));
+
+    for (dir, size) in densities {
+        let out = res_base.join(dir).join("love.png");
+        if let Some(parent) = out.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let resized = img.resize_exact(*size, *size, image::imageops::FilterType::Lanczos3);
+        resized.save(&out)?;
+        logs.push(format!("  ✓ {}x{} → {}", size, size, out.display()));
+    }
+    Ok(logs)
 }
 
 fn find_file_in_dir(dir: &Path, name: &str) -> Option<PathBuf> {

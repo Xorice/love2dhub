@@ -1,11 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Play, CheckCircle, XCircle, Loader2, Terminal, Cpu, Info,
   ImageIcon, Trash2,
 } from "lucide-react";
 import { useAppStore } from "../store/useAppStore";
-import { buildGame, onBuildLog } from "../lib/tauri";
-import type { Platform } from "../types";
+import { buildGame, onBuildLog, onBuildProgress, readFileAsDataUrl } from "../lib/tauri";
+import type { Platform, BuildProgress } from "../types";
 import { useT } from "../i18n/useT";
 
 const PLATFORM_LABELS: Record<Platform, string> = {
@@ -20,7 +20,7 @@ export default function BuildPanel() {
   const {
     project, cachedRuntimes, isBuilding,
     buildProgressList, setBuildProgressList,
-    setIsBuilding, updateProject,
+    setIsBuilding, updateProject, updateBuildProgress,
     buildLogs, addBuildLog, clearBuildLogs,
     settings,
   } = useAppStore();
@@ -32,6 +32,13 @@ export default function BuildPanel() {
     const unlisten = onBuildLog((msg) => { addBuildLog(msg); });
     return () => { unlisten.then((fn) => fn()); };
   }, [addBuildLog]);
+
+  useEffect(() => {
+    const unlisten = onBuildProgress(({ platform, status, message }) => {
+      updateBuildProgress(platform as Platform, { status: status as BuildProgress["status"], message });
+    });
+    return () => { unlisten.then((fn) => fn()); };
+  }, [updateBuildProgress]);
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -269,8 +276,16 @@ export default function BuildPanel() {
 function ProjectInfoBar() {
   const { project } = useAppStore();
   const t = useT();
+  const [iconDataUrl, setIconDataUrl] = useState<string | null>(null);
   const hasIcon = project.iconPath.trim() !== "";
   const isReady = project.name.trim() !== "" && project.sourcePath !== "";
+
+  useEffect(() => {
+    if (!hasIcon) { setIconDataUrl(null); return; }
+    readFileAsDataUrl(project.iconPath)
+      .then(setIconDataUrl)
+      .catch(() => setIconDataUrl(null));
+  }, [project.iconPath, hasIcon]);
 
   if (!isReady) {
     return (
@@ -284,8 +299,8 @@ function ProjectInfoBar() {
   return (
     <div className="flex-shrink-0 card px-4 py-3 flex items-center gap-4">
       <div className="w-10 h-10 rounded-lg bg-pink-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
-        {hasIcon ? (
-          <img src={`file://${project.iconPath}`} alt="icon" className="w-10 h-10 object-cover rounded-lg" />
+        {hasIcon && iconDataUrl ? (
+          <img src={iconDataUrl} alt="icon" className="w-10 h-10 object-cover rounded-lg" />
         ) : (
           <ImageIcon size={18} className="text-pink-400" />
         )}

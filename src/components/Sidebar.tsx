@@ -1,4 +1,6 @@
+import { useState, useEffect } from "react";
 import { Heart, Package, Download, Wrench, Box, Settings, Info } from "lucide-react";
+import { getVersion } from "@tauri-apps/api/app";
 import { useAppStore } from "../store/useAppStore";
 import type { ActiveTab } from "../store/useAppStore";
 import { useT } from "../i18n/useT";
@@ -6,6 +8,8 @@ import { useT } from "../i18n/useT";
 export default function Sidebar() {
   const { activeTab, setActiveTab } = useAppStore();
   const t = useT();
+  const [appVersion, setAppVersion] = useState("");
+  useEffect(() => { getVersion().then(setAppVersion); }, []);
 
   const tabs = [
     { id: "project"  as ActiveTab, label: t("nav.project"),  icon: Package  },
@@ -25,7 +29,7 @@ export default function Sidebar() {
         </div>
         <div>
           <div className="text-sm font-bold text-gray-900 dark:text-[#e8e8e8] leading-tight">LÖVE Hub</div>
-          <div className="text-xs text-gray-400 dark:text-[#606060]">v0.1.0</div>
+          <div className="text-xs text-gray-400 dark:text-[#606060]">v{appVersion}</div>
         </div>
       </div>
 

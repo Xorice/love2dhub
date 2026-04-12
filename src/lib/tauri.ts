@@ -73,6 +73,10 @@ export function onBuildLog(cb: (msg: string) => void) {
   return listen<string>("build-log", (e) => cb(e.payload));
 }
 
+export function onBuildProgress(cb: (p: { platform: string; status: string; message: string }) => void) {
+  return listen<{ platform: string; status: string; message: string }>("build-progress", (e) => cb(e.payload));
+}
+
 // ── 已打包程序 ─────────────────────────────────────────────
 export async function listPackages(
   platforms: string[],
@@ -109,6 +113,11 @@ export async function getDefaultDirs(): Promise<{ runtimeDir: string; buildDir: 
 /** 在文件管理器中打开指定路径，不存在时自动创建目录 */
 export async function openPath(path: string): Promise<void> {
   return invoke("open_path", { path });
+}
+
+/** 读取本地文件并返回 base64 data URL（用于图片预览，绕过 Tauri asset 协议限制） */
+export async function readFileAsDataUrl(path: string): Promise<string> {
+  return invoke<string>("read_file_as_data_url", { path });
 }
 
 // ── 文件对话框（静态导入，修复 Tauri 2.0 兼容问题）────────

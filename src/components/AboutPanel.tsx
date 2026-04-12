@@ -1,8 +1,12 @@
+import { useState, useEffect } from "react";
 import { Heart, ExternalLink } from "lucide-react";
+import { getVersion } from "@tauri-apps/api/app";
 import { useT } from "../i18n/useT";
 
 export default function AboutPanel() {
   const t = useT();
+  const [appVersion, setAppVersion] = useState("");
+  useEffect(() => { getVersion().then(setAppVersion); }, []);
 
   const stack = [
     { name: "Tauri 2.0", desc: t("about.stack_tauri") },
@@ -32,7 +36,7 @@ export default function AboutPanel() {
           <div>
             <div className="text-xl font-bold text-gray-900 dark:text-[#e8e8e8]">LÖVE Hub</div>
             <div className="text-sm text-gray-500 mt-0.5">{t("about.app_desc")}</div>
-            <div className="text-xs text-gray-400 mt-1">{t("about.version")} 0.1.0</div>
+            <div className="text-xs text-gray-400 mt-1">{t("about.version")} {appVersion}</div>
           </div>
         </div>
 
