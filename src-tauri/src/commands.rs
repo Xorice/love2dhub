@@ -631,15 +631,9 @@ async fn build_android(
     {
         let name_bytes = config.name.as_bytes()
             .iter().map(|b| b.to_string()).collect::<Vec<_>>().join(",");
-        let orientation = if config.android_orientation.is_empty() {
-            "landscape"
-        } else {
-            config.android_orientation.as_str()
-        };
         let gradle_props = format!(
             "app.name_byte_array={name_bytes}\n\
              app.application_id={app_id}\n\
-             app.orientation={orientation}\n\
              app.version_code={version_code}\n\
              app.version_name={version_name}\n\
              \n\
@@ -651,12 +645,11 @@ async fn build_android(
              android.nonFinalResIds=true\n",
             name_bytes = name_bytes,
             app_id = app_id,
-            orientation = orientation,
             version_code = version_code,
             version_name = config.version,
         );
         std::fs::write(template.join("gradle.properties"), gradle_props)?;
-        emit_log(app, &format!("[OK] gradle.properties 已更新（应用名: {}，方向: {}）", config.name, orientation));
+        emit_log(app, &format!("[OK] gradle.properties 已更新（应用名: {}）", config.name));
     }
 
     // ── 5.5 覆写启动图标 ───────────────────────────────────────

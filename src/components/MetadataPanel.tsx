@@ -9,13 +9,6 @@ export default function MetadataPanel() {
   const winEnabled  = project.targets.some((t2) => t2.platform === "windows" && t2.enabled);
   const droidEnabled = project.targets.some((t2) => t2.platform === "android" && t2.enabled);
 
-  const ORIENTATIONS = [
-    { value: "landscape",       label: t("metadata.orient_landscape") },
-    { value: "portrait",        label: t("metadata.orient_portrait") },
-    { value: "sensorLandscape", label: t("metadata.orient_sensor_landscape") },
-    { value: "sensorPortrait",  label: t("metadata.orient_sensor_portrait") },
-  ] as const;
-
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <div className="max-w-2xl space-y-5">
@@ -98,27 +91,6 @@ export default function MetadataPanel() {
                 spellCheck={false}
                 autoComplete="off"
               />
-            </Field>
-            <Field label={t("metadata.android_orientation")}>
-              <div className="grid grid-cols-2 gap-2">
-                {ORIENTATIONS.map(({ value, label }) => {
-                  const active = project.androidOrientation === value;
-                  return (
-                    <button
-                      key={value}
-                      disabled={!droidEnabled}
-                      onClick={() => updateProject({ androidOrientation: value })}
-                      className={`px-3 py-2 rounded-lg border text-sm transition-colors text-left ${
-                        active
-                          ? "border-pink-400 bg-pink-50 dark:bg-pink-900/20 text-pink-600 dark:text-pink-400 font-medium"
-                          : "border-gray-200 dark:border-[#333] bg-white dark:bg-[#1e1e1e] text-gray-600 dark:text-[#909090] hover:border-gray-300"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
             </Field>
           </div>
         </div>

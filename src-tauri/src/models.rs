@@ -62,9 +62,6 @@ pub struct ProjectConfig {
     /// Android 应用包名，如 com.example.mygame（空则自动生成）
     #[serde(rename = "androidAppId", default)]
     pub android_app_id: String,
-    /// 屏幕方向：landscape / portrait / sensorLandscape / sensorPortrait
-    #[serde(rename = "androidOrientation", default)]
-    pub android_orientation: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -44,8 +44,6 @@ export interface ProjectConfig {
   // ── Android 元数据 ────────────────────────────────────
   /** Android 应用包名，如 com.example.mygame（空则自动生成） */
   androidAppId: string;
-  /** 屏幕方向 */
-  androidOrientation: "landscape" | "portrait" | "sensorLandscape" | "sensorPortrait";
 }
 
 export interface BuildTarget {

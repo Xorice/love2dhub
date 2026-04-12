@@ -74,11 +74,6 @@ const en = {
     android_app_id: "Application ID",
     android_app_id_hint: "Leave blank to auto-generate",
     android_app_id_placeholder: "e.g. com.example.mygame (blank: org.love2d.{name})",
-    android_orientation: "Screen Orientation",
-    orient_landscape: "Landscape",
-    orient_portrait: "Portrait",
-    orient_sensor_landscape: "Landscape (sensor)",
-    orient_sensor_portrait: "Portrait (sensor)",
     no_platform_hint: "Enable the platform in Project Config first",
   },
   versions: {

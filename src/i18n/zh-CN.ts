@@ -74,11 +74,6 @@ const zhCN = {
     android_app_id: "应用包名 (Application ID)",
     android_app_id_hint: "留空则自动生成",
     android_app_id_placeholder: "如 com.example.mygame（留空：org.love2d.{游戏名}）",
-    android_orientation: "屏幕方向",
-    orient_landscape: "横屏",
-    orient_portrait: "竖屏",
-    orient_sensor_landscape: "横屏（跟随传感器）",
-    orient_sensor_portrait: "竖屏（跟随传感器）",
     no_platform_hint: "请先在「项目配置」中启用对应平台",
   },
   versions: {

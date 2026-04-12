@@ -102,7 +102,6 @@ const defaultProject: ProjectConfig = {
   winCompanyName: "",
   winCopyright: "",
   androidAppId: "",
-  androidOrientation: "landscape",
   sourcePath: "",
   iconPath: "",
   love2dVersion: "",
