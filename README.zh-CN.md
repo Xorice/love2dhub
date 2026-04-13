@@ -116,7 +116,3 @@ love2dhub/
 - [i18next](https://www.i18next.com) — 国际化
 
 ---
-
-## License
-
-MIT
