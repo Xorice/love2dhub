@@ -1,3 +1,5 @@
+
+
 # LÖVE Hub
 
 **A GUI tool for packaging and distributing [LÖVE](https://love2d.org) games.**  
@@ -24,7 +26,7 @@ Go to **Version Manager → Get New Version**, click **Refresh** to load the ver
 ### 2. Configure your project
 
 Go to **Project Config** and fill in:
-- Game name and version (required)
+- Game name (required; version defaults to `1.0.0`)
 - Source directory — the folder containing `main.lua`
 - Target platforms (Windows, Linux, Android)
 
